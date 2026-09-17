@@ -33,3 +33,4 @@ print("Weight of 3rd:", people[2][1])
 
 #New row person 1 with years_of_experience added as 4th feature
 # [ 170, 70, 30 , 6]  height=170, weight=70, age=30, years_of_experience=6
+
