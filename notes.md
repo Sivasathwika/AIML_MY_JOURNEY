@@ -140,6 +140,32 @@ It is the single most important algorithm in machine learning
 - The gradient decides the direction and steepness. The learning rate scales that step. The actual change is lr × gradient. Sign comes from the gradient, magnitude comes from lr × |gradient|.
 
 
+## Lesson 4b: Extra Insights
+
+1. Why does the gradient shrink near the bottom?
+The gradient is the slope of the loss curve. At the minimum, slope=0.
+So gradient descent naturally slows down as it approaches the answer.
+
+2. Local minima, saddle points, plateaus
+- Linear regrassion: one bowl -shaped loss, one minimum. Always converges.
+- Neural Networks: many minima, saddle points, plateaus.
+  Solutions: random init, SGD (batched gradients), momentum, Adam optimizer.
+
+3. Do w and b need the same learning rate?
+No. Modern Optimizers (Adam, RMSProp) track a per-parameter effective learning rate autumatically. For a simple linearr model, one lr is fine.
+
+4. What is Noise?
+Everything that affects the target but isn't in your features.
+Examples: house location, buyer motivation, geentics, photoblur.
+      let us assume that two houses has same features 1500 sqft, 3 bedrooms, 5 year old but they have different prices because of other thing like location, interior, facilities, seller communication skills etc.
+      this is called noise data
+
+Noise is irreducible - no model can drive loss below the noise floor.
+The only way to reduce it is better features (feature engineering).
+
+
+
+
 
 
 
