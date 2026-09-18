@@ -38,17 +38,19 @@ So, vectors are essential for the efficient model training
 # Key facts:
 - Any ordered list of numbers can be a vector 
   it can be list or array 
-- using list from python and performing operations on list is less efficient because of slow speed
+- using list from python and performing operations on list is less efficient because in python the list contains pointers to individual python objects which has their own location, memory and overhead
 - this speed can be improved using the array from numpy which uses compile c code for performin g operations which produces better speedup
 - and also on list the element wise operations are done using loop which is inefficient because of slow speed
 - but using numpy array saves time and performace approximately 25x times better comparatively
 
+let a and b are arrays
+- a + b → element-wise addition (returns a vector)
+- a * 5 → scalar multiplication (returns a vector)
+- a * b → element-wise multiplication (returns a vector)
+- np.dot(a, b) or a @ b → dot product: multiply element-wise, then SUM (returns a SCALAR)
+- The difference: a * b gives a vector; np.dot(a, b) gives a single number
+- Dot product of [1,2,3] and [10,20,30] = 1×10 + 2×20 + 3×30 = 140
+
 # Interview Answer
-A Vector is a ordered list of numbers
-We can create vectors using list or array
-A dataset is build on vectors 
-we need datasets in ml to train models 
-So vectors play a major role in training algorithms for efficient models
-
-
+A vector is an ordered list of numbers. In ML, every example — every row of a dataset — is a vector of features. We use NumPy arrays rather than Python lists because NumPy does element-wise and matrix operations natively and 20–100x faster, using compiled C and contiguous memory. The dot product of two vectors is the sum of their element-wise products, and it's the core operation behind linear models and neural networks.
 
