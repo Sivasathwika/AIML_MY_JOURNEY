@@ -167,7 +167,7 @@ The only way to reduce it is better features (feature engineering).
 
 # WHAT IT IS
 The mathematical derivation of the gradient formula used in gradient descent.
-shows why grad_w = 2 * mean(error * X) and grad+b = 2 * mean(error).
+shows why grad_w = 2 * mean(error * X) and grad_b = 2 * mean(error).
 
 # WHY IT MATTERS:
 Every ML model is trained by minimizing a loss. To do that, we need the gradient: the derivative of the loss with respect to each parameter.
@@ -176,7 +176,7 @@ Understanding the derivation means you can derive gradients for ANY loss,not jus
 # WHAT A DERIVATIVE IS:
 A derivative is a rate of change. It answers: "if I change this thing a tiny bit, how much does that other thing change?"
 
-ex: the derivatice of distance with respect to time is speed.
+ex: the derivative of distance with respect to time is speed.
 
 The gradient is the derivative of loss with respect to a parameter.
 It tells you: "If I nudge w a tiny bit, how much does the loss change?"
@@ -229,11 +229,11 @@ The power rule. Differentiating u² always brings down a factor of 2.
 - b is added, so du/db = 1 (chain rule contributes nothing extra)
 
 # WHY WE SQUARE THE ERROR (MSE):
-- Raw erroes cancel: +2 and -2 average to 0, falsely looking perfect
+- Raw errors cancel: +2 and -2 average to 0, falsely looking perfect
 - Unary minus does NOT fix this - it just flips signs, still cancels
 - Absolute value fixes cancellation but has a sharp corner at 0
-  -> not differentiable -> graddient descent can't take smooth steps
-- Squaring fices cancellation AND is smooth everywhere
+  -> not differentiable -> gradient descent can't take smooth steps
+- Squaring fixes cancellation AND is smooth everywhere
 - Bonus: heavily penalizes large errors (great if you want to avoid big mistakes, bad if your data has outliers)
 
 Comparison of loss functions:
@@ -244,7 +244,7 @@ Comparison of loss functions:
 
 # YOU DON'T HAVE TO USE MSE:
 MSE is the default for regression, not the only option. 
-choosing a loss = deciding which istakes matter most:
+choosing a loss = deciding which mistakes matter most:
           All mistakes equally bad       → MAE
           Big mistakes especially bad    → MSE
           Balance between the two        → Huber
@@ -252,14 +252,14 @@ choosing a loss = deciding which istakes matter most:
 
 MSE is taught first because:
     - Easiest gradient to derive (power rule + chain rule)
-    - Default in sklearn / PyTorch / TesnorFlow
+    - Default in sklearn / PyTorch / TensorFlow
     - Teaches the general pattern: write loss -> differentiation -> get gradient
   
 # GRADIENT CHECKING - WHY IT MATTERS IN PRACTICE:
 
 When you write a new loss function or a new neural network layer, you compute the gradient yourself. One typo in the derivation and the training silently fails - the loss doesn't decrease, or it explodes to nan, or it converges to the wrong answer.
 
-Graadient checking catches this before it wastes a trainign run:
+Gradient checking catches this before it wastes a training run:
 
 How it works:
     1.Compute the gradient ANALYTICALLY (from the formula you derived)
@@ -270,7 +270,7 @@ How it works:
 Real-world use:
     - Deep learning frameworks have gradient checking built in
     - PyTorch has torch.autograd.gradcheck()
-    - Used to debug neural networks when trainging silently fails
+    - Used to debug neural networks when training silently fails
 
 Key insight:
     The numerical gradient doesn't need calculus - just subtraction.
@@ -279,26 +279,159 @@ Key insight:
 # INTERVIEW ANSWER:
 - To train a model, we minimize the loss function with gradient descent.
 - The loss for linear regression with MSE is the mean of the squared errors.
-- We differentiatie this using the power rule and chain rule. Letting u be the
+- We differentiate this using the power rule and chain rule. Letting u be the
   per-example error, we get d/dw(u²) = 2·error·x and d/db(u²) = 2·error.
 - Since the loss is an average, its gradient is the average of the individual  gradients: ∂L/∂w = 2·mean(error·x) and ∂L/∂b = 2·mean(error).
 - The '2' comes from the power rule.
 - The 'x' comes from the chain rule -> x is what multiplies w, so it enters the gradient.
 - For b, the coefficient is 1, so no x appears.
 - We verify this numerically using gradient checking - nudging the parameter and measuring the loss change - and the two methods must match.
-- In practice, gradient checking it how engineers debug new loss functions and neural network layers.
-
-
-        
+- In practice, gradient checking it is how engineers debug new loss functions and neural network layers.
 
 
 
+## Lesson 6: First Real ML Pipeline
 
+# WHAT IT IS
+Load data → split into train/test → fit → predict → evaluate on test.
+The full cycle of training and measuring a model.
 
+# WHY IT MATTERS
+This is the standard ML workflow. Every model, every company, every day.
+The pipeline is identical for linear regression and for GPT. Only the
+model changes.
 
+# PIPELINE — 5 STEPS
 
+1. Load data
+     X = features   (n_samples, n_features)
+     y = target     (n_samples,)
 
+2. Split into train and test
+     X_train, X_test, y_train, y_test = train_test_split(
+         X, y, test_size=0.2, random_state=42)
+     Typical: 80% train, 20% test.
 
+3. Create and fit
+     model = LinearRegression()
+     model.fit(X_train, y_train)
 
+4. Predict
+     y_train_pred = model.predict(X_train)
+     y_test_pred  = model.predict(X_test)
 
+5. Evaluate
+     mean_squared_error(y_true, y_pred)   # TRUE first, prediction second
 
+# THE SKLEARN API — 3 METHODS
+     fit(X, y)       → train
+     predict(X)      → predict
+     score(X, y)     → evaluate (R² for regression)
+
+Every sklearn model (LinearRegression, RandomForest, SVM, KNN, ...) uses
+the same three methods with the same argument order. Learn once, use all.
+
+# WHY TRAIN vs TEST
+- Train set = practice problems
+- Test set  = final exam (data the model has never seen)
+- If you evaluate on training data, you're checking if the model
+  MEMORIZED. Test score is the only honest measure.
+- Training error is always optimistically low.
+
+# THREE FIT STATES
+
+  Underfitting:  high train error + high test error
+                 → model too simple
+                 → fix: more complex model, more features
+
+  Good fit:      low train error + low test error   (small gap)
+                 → the goal
+
+  Overfitting:   low train error + high test error  (big gap)
+                 → memorized training data, can't generalize
+                 → fix: simpler model, regularization, more data
+
+The GAP between train and test error is the signal — not the absolute
+numbers.
+
+# DIABETES RESULTS (what we got)
+  X shape: (442, 10)
+  train: (353, 10)   test: (89, 10)   353 + 89 = 442 ✓
+  Training MSE: 2868.55
+  Test MSE:     2900.19
+  Gap ~1% → well-fit model. Linear regression is simple, hard to overfit.
+
+# KEY DETAILS
+- random_state=42 → reproducible split. Without it, different results
+  every run and you can't compare experiments.
+- Argument order (y_true, y_pred) matters for accuracy, precision,
+  recall, f1, confusion_matrix. For MSE it's symmetric, but build the
+  habit now.
+- model.coef_ = weights (one per feature)
+- model.intercept_ = bias
+- Print coeffs paired with feature names:
+    for name, coef in zip(data.feature_names, model.coef_):
+        print(f"{name}: {coef:.4f}")
+
+# WHAT AN API IS
+A contract between two pieces of software. Defines:
+  - what you can request
+  - how to request it
+  - what you get back
+Hides the implementation. It does NOT "call" anything — it's the
+interface through which calls are made.
+
+Restaurant analogy:
+  Menu = the API.  Waiter = implementation.  Kitchen = the server.
+
+# THE SKLEARN API
+The consistent interface all sklearn models share: fit / predict / score.
+That consistency is the API. Without it, every model would have different
+method names and argument orders.
+
+# TYPES OF APIs
+- Library API:   np.mean(), model.fit()
+- Web API:       GET https://api.github.com/users/...
+- OS API:        open("file.txt")
+- Hardware API:  drivers talking to hardware
+
+In interviews, "API" usually means Web API. "sklearn API" means the
+library's consistent interface pattern.
+
+# DATA STORAGE & MEMORY AT SCALE
+
+  < 1 GB         → load all into NumPy / pandas
+  1–50 GB        → load into RAM, batch during training
+  50 GB – 1 TB   → memory-map, Parquet/Arrow, generators
+  > 1 TB         → distributed (Spark/Dask) or streaming (Kafka)
+
+Techniques:
+- Batching: feed small chunks, not the whole dataset. This IS what
+  stochastic gradient descent (SGD) means. How all deep learning trains.
+- Generators: yield one batch at a time. One example in memory.
+- np.memmap: treat a disk file as an array. OS pages it in on demand.
+- Parquet/Arrow: columnar storage. Read only the columns you need.
+- PyTorch DataLoader: prefetch next batch while current trains.
+  num_workers=8 → parallel processes feed the GPU.
+
+Rule of thumb:
+  Fits in RAM → load once, batch during training.
+  Doesn't    → stream it.
+
+# THE GPU BOTTLENECK
+GPUs compute very fast; data loading is slow. Often the GPU idles waiting
+for data. Fixes: prefetch, parallel loaders, fast SSDs (NVMe), keep data
+in RAM between epochs.
+
+# INTERVIEW ANSWER
+"The standard pipeline is load, split, fit, predict, evaluate. I split
+into train and test BEFORE training — evaluating on training data only
+tells you if the model memorized. If train error is low and test error
+is high, the model is overfitting; if both are high, it's underfitting;
+a small gap means a good fit. sklearn uses a consistent API — fit,
+predict, score — so once you learn it, every model works the same way.
+For large data, I batch during training (that's SGD), use memory-mapping
+or Parquet when data exceeds RAM, and stream when it exceeds a machine."
+
+# MY QUESTION
+How is memory handled when training on huge datasets?
