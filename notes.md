@@ -447,14 +447,14 @@ Cross-validation = averaging performance over k train/test splits.
 MSE alone doesn't tell you if a model is good - R² does.
 A single train/test split is unreliable - cross-val fixes that
 
-# R² (Coefficient of Determinatiom\n)
+# R² (Coefficient of Determination)
                 R² = 1 - (SS_res / SS_tot)
 SS_res = sum of squared errors of your model
 SS_tot = sum of squared errors of the baseline (predicting the mean)
 
 - 1.0 -> Perfect
 - 0.0 -> no better than predicting the mean
-- <0  -> WORSE than predictin the mean (happens)
+- <0  -> WORSE than predicting the mean (happens)
 - 0.45 -> model explains 45% of the variance in y
          the other 55% is noise or unmodeled features or non-linear effects.
          Not necessarily "noise."
@@ -470,24 +470,24 @@ SS_tot = sum of squared errors of the baseline (predicting the mean)
         scores.std()    # how stable the model is
 
 # WHY CV IS BETTER THAN ONE SINGE SPLIT
-A single split's score depends entirely on which points landed in the test set. That score could be lucky or unlucky. Crosss-validation averages over k different splits -> more stable estimate. Every point is tested exactly once and trained on k-1 times.
+A single split's score depends entirely on which points landed in the test set. That score could be lucky or unlucky. Cross-validation averages over k different splits -> more stable estimate. Every point is tested exactly once and trained on k-1 times.
 
 # MEAN AND STD - HOW TO READ THEM
 - Mean = your best estimate of true performace
-- std = Uncertainity around that estimate
+- std = Uncertainty around that estimate
 - Report as : R² = mean(scores) ± std(scores)
       
 ex: R² = 0.45 ± 0.15
 
 WRONG: "score is 0.45 + 0.15 = 0.65"
-RIGHT: "score is 0.45, but imdividual folds range roughly 0.30-0.60"
+RIGHT: "score is 0.45, but individual folds range roughly 0.30-0.60"
 
 # INTERPRETING STD
 - small std (0.02-0.05) -> model is stable and consistent
 - Large std (0.10-0.20) -> model is unstable; performance depends on which data it sees - a warning sign
 
 # INTERVIEW ANSWER
-R² measures how much of the variance in the target my model expalins, on a scale where 1 is perfect and 0 means no better than prediciting the mean. Because a single train/test split gives an unreliable estimate that depepnds on which points happened to land in the test set, I use k-fold cross-validation: train on k-1 folds, test on the held-out fold, average k folds. The mean is my best estimate of performance, and std tells me how stable the model is. A large std means the model's performance varies a lot depending on the data it sees.
+R² measures how much of the variance in the target my model explains, on a scale where 1 is perfect and 0 means no better than predicting the mean. Because a single train/test split gives an unreliable estimate that depends on which points happened to land in the test set, I use k-fold cross-validation: train on k-1 folds, test on the held-out fold, average k folds. The mean is my best estimate of performance, and std tells me how stable the model is. A large std means the model's performance varies a lot depending on the data it sees.
 
 # MY QUESTION
 How do i get my each fold's score?
