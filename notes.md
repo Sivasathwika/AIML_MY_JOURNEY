@@ -1,5 +1,6 @@
-## Lesson 1: Data
+#### PHASE 1 ####
 
+## Lesson 1: Data
 
 # WHAT IT IS?
 Data is a collection of examples, where each example has features (inputs) and often a target (what we want to predict).
@@ -491,4 +492,154 @@ R² measures how much of the variance in the target my model explains, on a scal
 
 # MY QUESTION
 How do i get my each fold's score?
+
+
+#### PHASE 2 ####
+
+## LESSON 8: Logistic Regression - Classification
+
+# WHAT IT IS
+The simplest classification model. Computes a linear score z = w·x + b,
+passes it through the sigmoid function to get a probability, then thresholds at 0.5 to assign a class.
+
+# WHY IT MATTERS
+Despite the name, logistic regression is a CLASSIFIER, not a regressor.
+It's the foundation of binary classification - spam filters, fraud detection, medical diagnosis. Real problems are often yes/no questions.
+
+# THE MODEL
+  z = w·x + b                       # linear score (any real number)
+  p = sigmoid(z)                    # probability in [0, 1]
+  prediction = 1 if p >= 0.5 else 0
+
+# THE SIGMOID FUNCTION
+  σ(z) = 1 / (1 + e^(-z))
+
+  Very negative z -> output near 00
+  Very positive z -> output near 1
+  z = 0           -> output exactly 0.5
+
+# WHY SIGMOID AND NOT OTHER FUNCTIONS?
+
+Three reasons:
+1. Maps R -> (0, 1) - valid probabiltiy range
+2. Complimentary: σ(z) + σ(-z) = 1, so P(class 0) + P(class 1) = 1
+3. Smooth adn differentiable - needed for gradient descent
+
+Other functions exist but don't fit as well:
+  tanh    -> [-1, 1], wrong range for probabilities (used in hidden layers)
+  softmax -> multi-class; reduces to sigmoid for 2 classes
+  ReLU    -> used in hidden layers, not outputs
+  step    -> no gradient, can't train with gradent descent
+
+Choice of output activation depends on what shape you need:
+  binary probabiltiy         -> sigmoid
+  multi-class probabiltiy    -> softmax
+  regression                 -> no activation
+  hidden layers              -> ReLU
+
+# LOG-ODDS (the deep reason sigmoid is used)
+Odds     = P / (1 - P)               range: 0 to ∞
+Log-odds = log(P / (1 - P))          range: -∞ to +∞
+
+Key values:
+      P = 0.5 -> odds 1     -> log-odds 0       (neutral)
+      P = 0.8 -> odds 4     -> log-odds +1.386  (favorable)
+      P = 0.2 -> odds 0.25  -> log-odds -1.386  (unfavorable)
+
+Why log-odds matters:
+  P is bounded [0, 1]. You can't fit a linear model w.x + b to something bounded. Lod-odds is unbounded - it matches the range of linear models
+
+  So we ASSUME: log-odds = w.x + b
+  Solving for P gives exactly: P = 1 / (1 + e^(-z)) = sigmoid(z) 
+
+  Therefore: sigmoid is not arbitary. It's the natural inverse of log-odds. z is the log-odds
+
+The identity:
+    z = 1.386
+    sigmoid(1.386) = 0.8
+    lod-odds(0.8) - 1.386  <- we get z back
+  They are inverse functions of each other
+
+Why state it as log-odds at all?
+  1.Coefficeint interpretation:  w = 0.5 means one unit of x multiplies
+  the ODDS by e^0.5 ≈ 1.65 -> 65% higher odds of class 1. Constant effect
+  2. Explains why sigmoid specifically (natural inverse og log-odds).
+  3. Connects to GLMs: logistic, Poison, linear regression are all
+     "linear model + link function."
+  
+For USING logistic regression, you don't need log-odds.
+FOR INTERPRETING  coefficeintss, you do.
+
+# SIMILARITY BETWEEN LINEAR AND LOGISTIC REGRESSION
+- Linear regression outputs any real number; probabilities must be in [0, 1]
+- MSE is wrong for 0/1 targets - logistic uses cross-entropy
+- Sigmoid is differentiable; a hard step is not
+
+# PREDICT vs PREDICT_PROBA
+
+predict(X)        → returns the final class (0 or 1). It's just
+                    predict_proba with the probability thrown away after
+                    thresholding at 0.5.
+
+predict_proba(X)  → returns probabilities. Use when confidence, custom
+                    thresholds, ranking, or probability-based metrics matter.
+
+Why the distinction matters:
+  1. Custom threshold - 00.5 assumes FP and FN are equally bad.
+     They never are. Medical screening wants a lower threshold (catch more cases); spam filters want higher (avoid false alarms).
+  2. Ranking - with 10M samples and capacity to review 500, you need    
+     the top-500 highest probabilities, not a binary flag.
+  3. Probabilityy-based metrics - ROC-AUC, log loss, calibration need
+     probabilities, not classes
+
+# CONVERGENCE WARNING
+Default max_iter=100. If model hasn't converged:
+    "ConvergenceWarning: lbfgs failed to converge"
+Fix: max_iter=10000.
+Symptoms: weird coefficients, unstable predictions.
+After convergence, coefficients change significantly
+(intercept 0.255 → 29.385 in our run).
+
+# FEATURE SCALING
+Logistic regression trains better on scaled features. Breast cancer
+features have wildly different ranges. Scaling (StandardScaler) later.
+
+NOTE:Feature scaling is a data preparation step in machine learning that changes all numerical columns to a common scale.
+
+# CLASS IMBALANCE
+Breast cancer dataset: 212 malignant (class 0), 357 benign (class 1).
+A lazy model predicting "benign" always gets:
+    Accuracy = 357/569 = 62.7%  ← majority class baseline
+It learns nothing but looks okay on accuracy.
+Fixes: class_weight='balanced', SMOTE, better metrics.
+
+# DATASET USED
+load_breast_cancer() — 569 samples, 30 features, binary target
+    0 = malignant
+    1 = benign
+
+# INTERVIEW ANSWER
+- Logistic regression is a binary classifier. It computes a linear score z = w·x + b, passses it through the sigmoid to get a probability in [0, 1], and thresholds at 0.5 to assign a class.
+- Sigmoid is used because it maps any real number to [0, 1], gives complementary probabilities, and is differentiable. 
+- """Mathematically, z is the log-odds of the positive class and sigmoid is the inverse of the log-odds function, so it's the natural link between a linear model and probabilities."""
+- We can't use linear regression because its output is unbounded and MSE is wrong for 0/1 targets.
+- predict returns classes; predict_proba returns probabilities, which matter when we want to tune the threshold to increase recall and avoid missing positive cases.
+
+# MY QUESTION (this session)
+Why sigmoid specifically? Other functions squash to [0, 1] too.
+And what are log-odds?
+
+# ANSWER
+- Sigmoid is the inverse of log-odds. z is the log-odds.
+- Log-odds = log(P/(1-P)), ranges -∞ to +∞,symmetric around 0.
+- Using log-odds lets a linear model fit on an unbounded scale, then we convert back to probabilties with sigmoid.
+- Coefficients become interpretable as multiplicative effects on odds.
+- Softmax generalizes to multi-class; rreduces to sigmoid for 2 classes.
+- Same linear core w·x + b is used in regression and classification.only the next step differs.
+
+   
+
+
+
+
 
