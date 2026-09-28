@@ -757,3 +757,230 @@ WHEN NOT TO USE AUC:
 
 
 
+## Lesson 10: Decision Trees
+
+# WHAT IT IS
+A model that predicts by asking a series of yes/no questions about the features. Each internal node = a question (feature > threshold). Each leaf = a prediction. To classify a sample, walk down the tree
+
+# WHY IT MATTERS
+First non-linear model in the journey. Can fit any shape of boundary, not just a straight line. Interpretable - you can read th erules and explain them to a non-technical person. Foundation of random forests and gradient boosting, which are the strongest models on tabular data.
+
+# HOW IT'S BUILT
+1. Try every feature and every threshold.
+2. Pick the split that best seperates the classes 
+   (measured by Gini impurity or entropy)
+3. Split the data, recurse on each side
+4. Stop when: max_depth reached, node is pure, or too few samples
+
+No gradient descent. No equations. Just greedy splits
+
+- NOTE: ALWAYS set random_state for decision trees. They're random by
+default; without a seed you can't compare runs.
+
+# KEY HYPERPARAMETERS
+- max_depth         most important. Controls everything
+- min_samples_split minimum samples required to split a node
+- min_samples_leaf  minimum samples allowes in a leaf
+- max_features      how many features to consider at each split
+
+# OVERFITTING IN TREES (from our lesson10.py)
+
+depth=1:    train=0.921, test=0.895   → underfitting (too simple) 
+depth=2:    train=0.930, test=0.930   → better, still simple
+depth=3:    train=0.978, test=0.947   → best balance
+depth=5:    train=0.996, test=0.947   → train rises, test plateaus
+depth=10:   train=1.000, test=0.947   → memorizing
+None:       train=1.000, test=0.947   → same as default
+
+Pattern:
+  - Test accuracy plateaus at 0.947 for depths 3+
+  - Train accuracy keeps rising to 1.0
+  - Extra depth memorizes training data without improving test
+  - Best choice is depth=3: same test score, smallest gap, simplest model
+
+Definition reminders:
+  - Underfitting = high train error AND high test error (small gap)
+  - Overfitting  = low train error AND high test error (big gap)
+  The GAP is the signal, not the absolute numbers.
+
+# WHY TREES DON'T NEED FEATURE SCALING
+Splits compare each feature to a threshold: "is radius > 15?"
+Rescaling changes the threshold value ("is radius/10 > 1.5?") but the
+same samples go left and right. Order matters, magnitude doesn't.
+
+Logistic regression uses w·x + b. If one feature's range is 1000x
+larger than another, its gradient dominates. Scaling equalizes them.
+
+# DECISION TREE vs LOGISTIC REGRESSION
+- Logistic: draws ONE straight line between classes (linear boundary)
+- Tree:     draws AXIS-ALIGNED RECTANGLES — a staircase of rules
+- Tree:     non-linear, no scaling needed, interpretable, unstable
+- Logistic: linear, needs scaling, less interpretable, stable
+
+# STRENGTHS
+- Non-linear patterns
+- No feature scaling needed
+- Interpretable — read the rules directly
+
+# WEAKNESSES
+- Overfits easily (fully grown tree → train acc 1.0)
+- Unstable — small data changes → completely different tree
+- Usually worse alone than ensembles (random forests, boosting)
+
+# INTERPRETABILITY (from our tree output)
+The tree's first split was on "mean concave points <= 0.05" — the most
+informative single feature. Later splits used "worst radius",
+"mean texture", "concavity error" — all tumor-shape features that
+pathologists also use. This is why interpretable models matter:
+you can explain the model's logic in human terms.
+
+# INTERVIEW ANSWER
+- A decision tree recursively splits data on feature thresholds. At each
+node it picks the feature and threshold that best separate the classes,
+measured by Gini impurity or entropy. 
+- It keeps splitting until a stopping criterion — usually max_depth. 
+- Unlike logistic regression, which draws a single linear boundary, a tree can fit any shape by
+combining axis-aligned splits. 
+- The main risk is overfitting: a fully grown tree memorizes the training data (train accuracy 1.0) but
+generalizes poorly.
+- I tune max_depth to control this — the goal is the simplest tree that achieves the best test accuracy.
+- Trees don't need feature scaling because splits only compare values  to thresholds;
+order matters, not magnitude. 
+- A single tree is unstable, which is why we use ensembles like random forests."
+
+
+## Lesson 10b: How a Decision Tree Chooses Splits (Gini Impurity)
+
+# WHAT IT IS
+The algorithm behind every tree split. At each node, the tree tries every
+feature and every threshold, and picks the split that reduces impurity
+the most.
+
+# WHY IT MATTERS
+This is the "learning" in a decision tree. No gradient descent. Just:
+try everything, pick what separates best. Understanding Gini explains
+why trees are greedy and why they overfit.
+
+# GINI IMPURITY — THE FORMULA
+    Gini = 1 - Σ p_i²
+
+For binary classification:
+    Gini = 1 - (p_0² + p_1²)
+
+where p_0, p_1 = fraction of samples in each class at that node.
+
+# WHAT GINI MEASURES
+- Gini = 0    → perfectly pure (all samples one class)
+- Gini = 0.5  → maximally mixed (50/50)
+- Lower is better.
+
+# CONCRETE EXAMPLE
+Node with 10 samples: 6 class 0, 4 class 1
+    p_0 = 0.6, p_1 = 0.4
+    Gini = 1 - (0.36 + 0.16) = 0.48   (impure)
+
+Split at x > 4.5:
+    Left  (4 samples, all class 0): Gini = 0
+    Right (6 samples, all class 1): Gini = 0
+    Weighted = (4/10)·0 + (6/10)·0 = 0.0   ← perfect
+
+Split at x > 2.5:
+    Left  (2 samples, all class 0): Gini = 0
+    Right (8 samples: 2 class 0, 6 class 1):
+        p_0 = 0.25, p_1 = 0.75
+        Gini = 1 - (0.0625 + 0.5625) = 0.375
+    Weighted = (2/10)·0 + (8/10)·0.375 = 0.30
+
+0.0 < 0.30 → the x > 4.5 split wins.
+
+# WHY WEIGHTED GINI?
+
+Naive average of children's Gini is wrong. Counter-example:
+    100 samples, split: 1 in left (pure), 99 in right (mixed)
+    Naive average = (0 + 0.45) / 2 = 0.225  ← looks good, is wrong
+
+Weighting by size fixes this:
+    (1/100)·0 + (99/100)·0.45 = 0.4455  ← correct, high (bad split)
+
+# THE WEIGHTED GINI FORMULA
+    Weighted Gini = (n_L / n) · G_L + (n_R / n) · G_R
+
+Where n = total samples in parent, n_L and n_R = samples in each child.
+It's a probability-weighted average: "If I pick a random sample and
+follow it down the split, what's the expected Gini of its child?"
+
+Large children dominate. Small pure children don't get to cheat the score.
+
+# IMPROVEMENT IN GINI
+    Improvement = G_parent - Weighted_Gini
+
+sklearn maximizes improvement (equivalent to minimizing weighted Gini).
+
+# THE TWO FUNCTIONS (from scratch)
+
+def gini(labels):
+    if len(labels) == 0:
+        return 0
+    p1 = sum(labels) / len(labels)
+    p0 = 1 - p1
+    return 1 - (p0**2 + p1**2)
+
+def weighted_gini(left_labels, right_labels):
+    n = len(left_labels) + len(right_labels)
+    return (len(left_labels) / n) * gini(left_labels) + \
+           (len(right_labels) / n) * gini(right_labels)
+
+Two functions, ~8 lines. That's all a decision tree uses to choose splits.
+
+# THE ALGORITHM
+
+def build_tree(data, labels):
+    if gini(labels) == 0 or stopping_condition_met():
+        return Leaf(majority_class(labels))
+
+    best_score = infinity
+    best_split = None
+
+    for feature in features:
+        for threshold in candidate_thresholds:
+            left, right = split(labels, feature, threshold)
+            score = weighted_gini(left, right)
+            if score < best_score:
+                best_score = score
+                best_split = (feature, threshold)
+
+    recurse on left and right
+
+# WHY THE TREE PICKED "mean concave points" FIRST
+Because across all 30 features and all thresholds on the breast cancer
+dataset, that split produced the LOWEST weighted Gini at the root. The
+tree doesn't know biology — it tries everything and picks what
+separates best.
+
+# ENTROPY — THE ALTERNATIVE
+    Entropy = -Σ p_i · log2(p_i)
+
+- Pure node → entropy = 0
+- 50/50 split → entropy = 1
+
+sklearn uses criterion='gini' by default. 'entropy' gives similar trees.
+
+# KEY PROPERTIES
+- Greedy: at each node, picks the locally best split. Not globally optimal.
+- Recursive: after splitting, repeats on each child.
+- No gradient descent. No scaling. Just impurity comparisons.
+- Interpretable: splits read like if/else rules.
+
+# INTERVIEW ANSWER
+- A decision tree picks splits by trying every feature and every threshold, and choosing the one that maximizes purity. Purity is measured by
+- Gini impurity — Gini = 1 - Σ p_i², where p_i is the fraction of each class in the node. 
+- Gini 0 = pure, 0.5 = maximally mixed. 
+- The tree computes the size-weighted Gini of the two children for every candidate split and picks the lowest. It recurses on each child. The algorithm is greedy — it makes the locally best split at each step, not the globally optimal tree. 
+- That's why trees overfit: they keep splitting until pure, and the
+greedy choices fit the training data. max_depth or min_samples_leaf
+stops the recursion.
+
+# MY QUESTIONS (this session)
+1. How does the tree know which feature to split first? (Gini impurity.)
+2. What does the weighted_gini function do? (Size-weighted average of
+   children's impurity scores.)
