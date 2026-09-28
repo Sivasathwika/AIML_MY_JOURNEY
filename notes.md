@@ -734,4 +734,26 @@ what they should for the business context."
 # MY QUESTION
 What does AUC of 0.998 actually mean?
 
+# ANSWER
+
+AUC = how often the model ranks a positive sample above a negative one.
+
+Example: pick one malignant, one benign. Compare their P(malignant).
+AUC = fraction of times malignant got the higher score.
+
+AUC = 0.998 → 99.8% of the time, the model gave the malignant sample
+a higher P(malignant) than the benign sample.
+
+ WHEN TO USE AUC:
+- Comparing models without picking a threshold (AUC is threshold-free)
+- Ranking problems — you never classify, you just send the top N to humans (fraud review)
+- Imbalanced data — accuracy lies, AUC doesn't
+- Risk scores used downstream — AUC tells how well you ordered the samples
+
+WHEN NOT TO USE AUC:
+- You've picked a threshold → use precision, recall, F1
+- You care about the actual probability values → use calibration metrics
+- Explaining to a non-technical stakeholder → accuracy or F1 is clearer
+
+
 
