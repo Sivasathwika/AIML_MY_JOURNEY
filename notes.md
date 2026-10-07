@@ -1313,3 +1313,90 @@ but in this code we used fit_transform in step 6 for standardscaler because in s
        Larger effect on small or messy data
 
   
+## Lesson 13: Regularization (Ridge & Lasso)
+
+# WHAT IT IS
+Adding a penalty to the loss function that discourages large weights
+Preventss overfitting without changing the model architecture
+
+# WHY IT MATTERS
+Linear and logistic models can overfit by assigning huge weights to features. Regularization shrinks those weights, trading a little training fit for better generalization.
+
+# RIDGE (L2) - LOSS
+      MSE + alpha · Σ w_i²
+- shrinks weights toward zero
+- NEVER makes them exactly zero
+- keeps all features, just with smaller influence
+
+# LASSO (L1) - LOSS
+      MSE + alpha · Σ |w_i|
+- shrinks weights
+- Drives some to exactly zero -> automatic feature selection
+- Drops irrelevant features
+
+# KEY DIFFERENCE
+Ridge: no feature selection, all features retained
+Lasso: sparse solution, some features eliminated
+Geometry: L1's diamond has corners at axes (sloutions hit 0)
+          L2's circle has no corners (solutions stay off the axes)
+
+# ELASTIC NET
+Combines both: alpha · l1_ratio · Σ|w| + alpha · (1 - l1_ratio) · Σw²
+- l1_ratio=1.0  -> pure lasso
+- l1_ratio=0.0  -> pure ridge
+- useful when many features are correlated
+
+# HOW ALPHA WORKS
+- alpha = 0       -> no regularization (plain regression)
+- alpha small     -> little effect
+- alpha moderate  -> weights shrink, test performance may improve
+- alpha large     -> weights forced near zero -> underfitting
+- alpha too large -> model predicts near the mean ->  R² crashes
+
+R² graph across alpha: inverted U — improves, peaks, then drops.
+where R² drops, it  signals  underfitting 
+
+# CRITICAL: ALWAYS SCALE FIRST
+The penalty is on raw weights.
+A feaure with small range needs a large weight to matter -> gets penalized unfairly. 
+so, Standardize first.
+
+# HOW TO CHOOSE ALPHA
+USE CROSS-VALIDATION - not the test set.
+- RidgeCV, LassoCV try a grid of alphas internally, pick best by CV
+- Never pick alpha by comparing test R² - that's test-set leakage
+
+# WHAT WE OBSERVED (diabetes dataset, scaled)
+Baseline LinearRegression: MSE=2900.19, R²=0.4526, largest coef=44.45
+Ridge (alpha=1):           MSE=2892.01, R²=0.4541, largest coef=34.67
+Lasso (alpha=0.1):         MSE=2884.62, R²=0.4555, largest coef=29.63
+
+Sum of |coef|:
+  Linear: 183.12   ← largest
+  Ridge:  156.42
+  Lasso:  140.96   ← smallest
+
+Ridge sweep (alpha): R² kept rising through alpha=100 - the unregularized baseline was slightly overfitting.
+
+Lasso zeroes; first zero coefficient at alpha=1
+At alpha=0.1 or below, no features dropped (all 10 are informative).
+
+RidgeCV picked alpha=1.0 by cross-validation. Test R² was slightly higher at alpha=100, but that's test-set luck, not a reason to override CV.
+
+# Interview Answer
+- Regularization adds a penalty for large weights to teh loss function.
+- Ridge (L2) uses the sum of squared eights and shrinks all weights toward zero.
+- Lasso (L1) uses the sum of absolute weights and drives some weights to exactly zero, which performs automatic feature selection.
+- alpha controls the strength - small means little effect, large means heavy shrinkage.
+- I choose alpha by cross-validation, not by tuning the test set.
+- I standardize features first because the penalty is on raw weight magnitude.
+- Use Ridge when all features are meaningful, Lasso when you suspect many are irrelevant.
+
+# MY QUESTIONS (this session)
+1. How do I choose the best alpha — based on R² or coefficient sum?
+   → R² (CV performance), not coefficient size. Coefficient size is
+     a means, not an end.
+
+2. Why did RidgeCV pick alpha=1 when alpha=100 gave higher test R²?
+   → RidgeCV uses CV on training data. Test R² is a single noisy
+     sample. Never tune hyperparameters by looking at test.
