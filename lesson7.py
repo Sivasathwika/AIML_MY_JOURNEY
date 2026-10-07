@@ -64,6 +64,5 @@ print(scores.std())
 
 #6.Compare 
 # Is the mean cross-val R² close to the single-split R²
-#ans: 
 # how much do the individual fold scores vary?
 
