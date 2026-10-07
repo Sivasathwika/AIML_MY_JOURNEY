@@ -1400,3 +1400,110 @@ RidgeCV picked alpha=1.0 by cross-validation. Test R² was slightly higher at al
 2. Why did RidgeCV pick alpha=1 when alpha=100 gave higher test R²?
    → RidgeCV uses CV on training data. Test R² is a single noisy
      sample. Never tune hyperparameters by looking at test.
+
+
+## Lesson 14: K-Means Clustering
+
+# WHAT IT IS
+Unsupervised algorithm that partitions data into K clusters. Each cluster has a centroid. Every point belongs to the nearest centroid.
+
+# WHY IT MATTERS
+First unsupervised model. No labels - the algorithm discovers structure on its own. Used for customer segmentation, image compression, anomaly detection, document clustering.
+
+# THE ALGORITHM
+1. choose K
+2. Initialize K centroids (k-means++ spreads them out)
+3. Repeat until assignments stop changing:
+    a. ASSIGN each point to its nearest centroid
+    b. UPDATE each centroid to the mean of its assigned points
+
+# THE OBJECTIVE - INERTIA
+        Inertia = Σ ||x_i - μ_{c(i)}||²
+
+  sum squared distances from each point to its own centroid.
+  Lower is better.
+
+# KEY LIMITATIONS
+- you must choose K
+- Assumes roughly spherical, similar-sized clusters
+- Sensitive to feature scale (Euclidean distance)
+- Random init matters (sklearn's k-means++ handles this)
+
+# HOW TO CHOOSE K
+
+Elbow method:
+    Plot inertia vs K.    Inertia always drops as K grows
+    Look for the "elbow" - where the drop suddenly slows
+
+Silhouette score:
+    For each point: a = avg distance to own cluster,
+                    b = avg distance to nearest other cluster.
+    silhouette = (b - a) / max(a,b)
+    Range: -1 to 1   (Higher is better)
+    -1: wrong cluster
+     0: near boundary
+     1: perfect
+
+They often agree. when they disagree, use domain knowledge.
+
+# WHAT WE OBSERVED (iris dataset, scaled)
+
+Crosstab (KMeans cluster vs true species):
+    Cluster 1 = all 50 setosa (perfect)
+    Clusters 0 & 2 mix versicolor and virginica
+    → setosa is easy to separate; versicolor/virginica overlap
+
+Inertia sweep:
+    k=1: 600.00
+    k=2: 222.36   ← big drop
+    k=3: 139.82   ← elbow here
+    k=4: 114.09   ← drop shrinks
+    k=5+:           drops get smaller
+    → Elbow at k=3, matches the true number of species
+
+Silhouette sweep:
+    k=2: 0.5818   ← highest
+    k=3: 0.4599
+    k=4: 0.3869
+    → Silhouette prefers k=2, disagrees with elbow.
+      Because splitting versicolor/virginica creates messy clusters.
+
+# SCALING AND K-MEANS
+K-Means uses Euclidean distance. Features with larger range dominate.
+Always scale first — UNLESS all features are already on similar scales
+(iris is all in cm — scaling has little effect here).
+
+IMPORTANT: inertia is NOT comparable across scaled vs unscaled data.
+inertia is in the units of the input. Compare clustering quality, not raw inertia
+
+# WHY "UNSUPERVISED"?
+No labels (y) are used during training. The model discovers structure on its own. Different from everything before (regression, classification - all supervised, all had y).
+
+# WHEN TO USE K-MEANS
+- Customer segmentation (group similar customers)
+- Image compression (reduce colors to K)
+- Anamoly detection (points far from any centroid)
+- Document clustering (group similar texts)
+- Feature engineering (cluster ID as a new feature)
+
+# INTERVIEW ANSWER
+- K-mens is an unsupervised algorithm that partitions data into K clusters by minimizing inertia - the sum of squared distances from each point to its cluster's centroid.
+- It iteratively assigns points to the nearest centroid and updates centroids to the mean of their points.
+- The main challenges are choosing K and scaling feaures, since it uses Euclidean distance. 
+- I choose K using the elbow method and silhouette score, and I standardize features first.
+- K-Means assumes spherical clusters of similar size; for irregular shpaes, DBSCAN or GMM work better.
+
+# MY QUESTIONS (this session)
+1. What is the elbow method? What does the elbow look like?
+    Plot inertia vs K. Inertia always drops with K. The "elbow" is
+    where the drop suddenly slows — indicating the natural K.
+
+2. What is the silhouette score, and why did it prefer k=2?
+    Silhouette measures how well each point fits its cluster vs the
+    nearest other. Range -1 to +1. Prefers k=2 here because setosa
+    separates cleanly from the other two species — but k=3 is correct
+    by domain knowledge.
+
+3. Why is inertia not comparable across scaled and unscaled data?
+    Inertia is in the units of the input. Scaling changes units.
+    Compare clustering QUALITY, not raw inertia values.
