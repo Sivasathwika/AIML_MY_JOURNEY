@@ -1507,3 +1507,125 @@ No labels (y) are used during training. The model discovers structure on its own
 3. Why is inertia not comparable across scaled and unscaled data?
     Inertia is in the units of the input. Scaling changes units.
     Compare clustering QUALITY, not raw inertia values.
+
+
+## Lesson 15: PCA (Principal Component Analysis)
+
+# WHAT IT IS
+Unsupervised dimensionality reduction. Finds new axes (principal
+components) that capture the most variance. Ordered by how much
+variance each captures. Project data onto the top-K components.
+
+# WHY IT MATTERS
+- 30 features → 10 with 95% of the info retained
+- Speeds up training (fewer features)
+- Reduces overfitting (noise removal)
+- Enables 2D visualization of high-dimensional data
+
+# THE ALGORITHM (high level)
+1. Standardize features (mean 0, std 1) — ALWAYS
+2. Compute covariance matrix
+3. Find eigenvectors/eigenvalues
+4. Sort by eigenvalue (largest = PC1)
+5. Project data onto top-K components
+It's a rotation of the coordinate system to align with max-variance
+directions.
+
+# KEY ATTRIBUTES (DON'T CONFUSE)
+pca.explained_variance_ratio_
+    → fraction of total variance per component. Sums to 1.0.
+    → USE THIS for "how much info retained"
+
+pca.explained_variance_
+    → raw variance in units of the input. Sums to total variance.
+    → NOT a ratio. Don't use for percentage comparisons.
+
+# WHAT WE OBSERVED (breast cancer, 30 features)
+
+First 10 explained variance ratios:
+  PC1  0.4427   (44% of all variance)
+  PC2  0.1897   (19%)
+  PC3  0.0939
+  PC4  0.0660
+  PC5  0.0549
+  PC6  0.0402
+  PC7  0.0225
+  PC8  0.0159
+  PC9  0.0139
+  PC10 0.0117
+
+Cumulative:
+  2 components  → 63.2%
+  5 components  → 84.7%
+  10 components → 95.2%   ← crosses 95% here
+  15 components → 99%+
+
+Components needed for 95%: 10 (from 30 original).
+
+# MODEL PERFORMANCE
+Logistic regression accuracy:
+  Full 30 features: 0.9737
+  2 components:     0.9912   ← better! Noise removal wins.
+  5 components:     0.9825
+  10 components:    0.9825
+  15 components:    0.9912
+  20+ components:   0.9737   ← back to baseline
+
+Sweep shows: fewer components often beat the full set.
+More features gave the model more to overfit on.
+This is a key lesson: more features ≠ better model.
+
+# HOW MANY COMPONENTS TO KEEP
+- 95% cumulative variance (most common)
+- Scree plot elbow
+- Kaiser rule: eigenvalues > 1 (on standardized data)
+Plot cumulative variance vs n_components; find where it crosses 0.95.
+
+# WHEN TO USE
+- Many features, few samples
+- Visualization (reduce to 2D)
+- Speed up training
+- Remove multicollinearity
+
+# WHEN NOT TO USE
+- Interpretability matters (components aren't original features)
+- Non-linear structure (PCA is linear)
+- Risk of dropping informative components
+- The target's signal isn't in the high-variance directions
+
+# PCA vs FEATURE SELECTION (Lasso)
+- PCA: creates NEW features (linear combinations). Unsupervised.
+- Lasso: keeps ORIGINAL features, zeros out some. Supervised (uses y).
+PCA transforms the axes; Lasso filters the existing axes.
+
+# INTERVIEW ANSWER
+"PCA is an unsupervised dimensionality reduction technique. It finds
+new axes — principal components — that capture the most variance in
+the data. They're the eigenvectors of the covariance matrix, ordered
+by eigenvalue. PC1 captures the most variance, PC2 the next orthogonal
+direction, etc. I always standardize first because PCA is variance-
+based and would otherwise be dominated by high-range features. For
+the breast cancer dataset, 10 components captured 95% of the variance,
+and logistic regression with 2 components outperformed the full
+30-feature model — because PCA removed noisy features and reduced
+overfitting. I use PCA for visualization, speedup, and reducing
+overfitting, but avoid it when interpretability matters or when the
+signal isn't linear."
+
+# MY QUESTIONS (this session)
+1. How many components do I keep?
+   → 95% cumulative variance rule (10 here), or scree elbow.
+
+2. Why did PCA improve accuracy?
+   → Removed noisy features; less overfitting on the small sample.
+
+3. Are explained_variance_ and explained_variance_ratio_ the same?
+   → No. Ratio sums to 1.0 per-component fraction. Variance is in
+     raw data units. Use the ratio for "info retained."
+
+# TAKEAWAYS
+- More features ≠ better model
+- PCA can improve accuracy by removing noise
+- Two meanings of "variance": data variance (PCA maximizes this) vs
+  model variance (overfitting). Don't confuse them.
+- Always scale before PCA
