@@ -1629,3 +1629,184 @@ signal isn't linear."
 - Two meanings of "variance": data variance (PCA maximizes this) vs
   model variance (overfitting). Don't confuse them.
 - Always scale before PCA
+
+
+## Lesson 16: Hyperparameter Tuning
+
+# WHAT IT IS
+Automated search for the best hyperparameters (settings chosen before
+training) using cross-validation to evaluate each combination.
+
+# WHY IT MATTERS
+Manual tuning is slow, unsystematic, and prone to overfitting to the
+test set. GridSearch, RandomizedSearch, and Optuna do it correctly
+with CV.
+
+# PARAMETER vs HYPERPARAMETER
+Parameters:     learned during training (weights, coefficients, splits)
+Hyperparameters: set before training (alpha, C, max_depth, n_estimators,
+                 learning_rate)
+You choose hyperparameters. The algorithm learns parameters.
+
+# THE THREE TOOLS
+
+## GridSearchCV
+Tries EVERY combination of a fixed set of values.
+    param_grid = {'model__C': [0.001, 0.01, 0.1, 1, 10, 100]}
+    GridSearchCV(pipe, param_grid, cv=5, scoring='accuracy')
+Pros:  exhaustive — guaranteed best in the grid
+Cons:  exponential in number of hyperparameters
+Fits = n_combinations × cv
+
+## RandomizedSearchCV
+Samples N random combinations from ranges.
+    param_dist = {
+        'model__max_depth': randint(3, 20),
+        'model__max_features': uniform(0.1, 0.8)
+    }
+    RandomizedSearchCV(pipe, param_dist, n_iter=20, cv=5)
+Pros:  efficient — random search beats grid when many params don't matter
+Cons:  not guaranteed to find the best
+Fits = n_iter × cv
+
+## Optuna (Bayesian Optimization)
+Learns from past trials to pick the next combination intelligently.
+    def objective(trial):
+        alpha = trial.suggest_float('alpha', 0.001, 100, log=True)
+        pipe = Pipeline([...])
+        return cross_val_score(pipe, X_train, y_train,
+                                cv=5, scoring='accuracy').mean()
+    study = optuna.create_study(direction='maximize')
+    study.optimize(objective, n_trials=30)
+Pros:  best result with fewest trials
+Cons:  different API, extra dependency
+
+# WHEN TO USE WHICH
+GridSearch:   few hyperparameters, small grid, need exhaustive
+Randomized:   many hyperparameters, can't afford grid
+Optuna:       real budget, want the best, many hyperparameters
+
+# CRITICAL RULES
+
+1. ALWAYS use a Pipeline
+   The scaler must refit inside each CV fold. Pre-scaling leaks.
+
+2. NEVER tune on the test set
+   Tune with CV on training data. Test set is for FINAL evaluation only.
+
+3. ALWAYS specify scoring explicitly
+   Different models default to different metrics:
+       Ridge, LinearRegression    → R²
+       LogisticRegression, forest → accuracy
+   Comparing across different metrics is invalid. Pick one metric and
+   use it everywhere.
+
+4. Log-scale for positive hyperparameters spanning orders of magnitude
+   Use trial.suggest_float('alpha', 0.001, 100, log=True).
+
+5. Start coarse, refine later
+   First search wide ranges, then narrow around the best.
+
+# PARAM NAMES USE DOUBLE UNDERSCORES
+For a pipeline step named 'model':
+    'model__C'          ← correct
+    'model.C'           ← wrong
+    'C'                 ← wrong (sklearn looks on pipeline, not step)
+
+# WHAT WE OBSERVED (breast cancer, 30 features)
+
+GridSearchCV (LogReg, C in [0.001..100]):
+    Best C = 1
+    Best CV = 0.9758
+    Test accuracy = 0.9737
+    = baseline. C=1 was already the default. Tuning confirmed.
+
+RandomizedSearchCV (RandomForest, n_iter=20):
+    Best: max_depth=6, max_features=0.23, n_estimators=180
+    Best CV = 0.9582
+    Test accuracy = 0.9649
+    Default RF test accuracy = 0.9649
+    → tuning did not help
+
+Optuna (RidgeClassifier, alpha):
+    Best alpha = 4.73
+    Best CV accuracy = 0.9604
+
+Optuna (LogisticRegression, C capped at 20):
+    Best C = 3.49
+    Best CV accuracy = 0.9780
+
+RANKING (CV accuracy, same metric):
+    1. LogisticRegression (Optuna, C=3.49)  → 0.9780
+    2. LogisticRegression (GridSearch, C=1) → 0.9758
+    3. RidgeClassifier (Optuna, alpha=4.73) → 0.9604
+    4. RandomForest (RandomizedSearch)      → 0.9582
+
+# THE BIG LESSON
+Tuning gained almost NOTHING on this dataset:
+- Default LR   → 0.9758
+- Tuned LR     → 0.9780    (+0.002)
+- Default RF   → 0.9649
+- Tuned RF     → 0.9649    (+0.0000)
+
+On clean, well-behaved data, default hyperparameters are often already
+near-optimal. Tuning confirms rather than improves.
+
+Complex models (RandomForest) LOST to a simple linear model
+(LogisticRegression) on this dataset. Complexity ≠ better.
+
+# C IN LOGISTICREGRESSION (clarified this lesson)
+C = 1 / alpha. INVERSE of regularization strength.
+    Small C → strong regularization → may underfit
+    Large C → weak regularization   → may overfit
+    Default C = 1
+Opposite direction from Ridge/Lasso alpha.
+
+Very large C can cause lbfgs convergence warnings.
+Cap C at 20 in the search space for this dataset.
+
+# TRACK SEARCH SPEED
+A single bad hyperparameter value can 10x total runtime.
+Example: C=85 → lbfgs takes 30s to converge. One trial dominates.
+Fix: cap the search space, or switch solver.
+
+# INTERVIEW ANSWER
+"Hyperparameter tuning searches for the best model settings using
+cross-validation. I use GridSearchCV for small grids, RandomizedSearchCV
+when I have many hyperparameters and can't afford exhaustive search,
+and Optuna (Bayesian optimization) when I have a real budget — it learns
+from past trials and finds better settings in fewer evaluations. I
+always wrap the model in a Pipeline so scaling refits per CV fold, and
+I always specify scoring explicitly so I'm comparing models on the same
+metric. I never tune on the test set — CV for choosing, test for final
+evaluation. On the breast cancer dataset, tuning barely improved over
+defaults — the default LogisticRegression was already near-optimal,
+which happens often on clean data."
+
+# MY QUESTIONS (this session)
+1. In step 7, do I need separate objectives for Ridge and LogisticRegression?
+   → Yes, cleaner. Two studies, each with one clear goal. Or combine
+     with max() but that hides which model contributed the score.
+
+2. Why does RandomizedSearchCV need param_distributions separately?
+   → Same structure as GridSearchCV, but values can be scipy
+     distributions (randint, uniform, loguniform) instead of lists.
+
+3. Why did separate Optuna studies run faster than the combined one?
+   → Not because of the split. Because I capped C at 20 — the
+     combined version was spending 30s per trial on C=85.
+
+4. Why use a Pipeline inside GridSearchCV?
+   → So the scaler refits on each fold's training portion. Otherwise
+     the scaler sees the fold's test data — leak.
+
+5. When would I use R² instead of accuracy for comparison?
+   → For regression problems (continuous target). Not for
+     classification. Never mix metrics across models.
+
+# TAKEAWAYS
+- Tuning doesn't always help — defaults can already be near-optimal
+- Always specify scoring explicitly
+- Pipeline is mandatory inside CV — prevents leakage
+- Complex models don't always win
+- Cache the search space — one bad hyperparameter value can dominate runtime
