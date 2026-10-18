@@ -2055,3 +2055,149 @@ LightGBM is faster on large data."
 - Strongest algorithm ≠ best algorithm for this data
 - Data leakage can hide in three different places; always audit
 - An honest 0.96 > a leaked 0.97
+
+
+## Lesson 18: Feature Engineering
+
+# WHAT IT IS
+Transforming raw, messy data into features a model can use.
+Two parts: (1) cleaning — impute missing, encode categorical;
+(2) creating — derive new features (FamilySize, Title, date parts).
+
+# WHY IT MATTERS
+- 60-80% of real ML work
+- Linear models can't discover interactions — you must create them
+- Trees can, but engineered features often still help
+- No model can learn from strings or NaN
+
+# PROBLEM 1: MISSING VALUES
+Options:
+  - Drop rows / columns (only when small and random)
+  - Impute: mean/median (numeric), most_frequent (categorical)
+  - Flag: add a "was_missing" indicator column
+
+Our Titanic output:
+  Age        177 missing (~20%)
+  Embarked     2 missing
+  Cabin      687 missing (not used)
+
+Rule: FIT imputer on TRAIN only. Transform test with train stats.
+Fitting on full data → leak.
+
+# PROBLEM 2: CATEGORICAL ENCODING
+One-hot encoding:
+  - Creates a 0/1 column per category
+  - For nominal categories (no order): Sex (male/female), Embarked (C/Q/S)
+  - handle_unknown='ignore' → unknown test categories → all zeros
+
+Ordinal encoding:
+  - Assigns integers per category
+  - Only for ordinal categories (1st > 2nd > 3rd)
+  - NEVER for nominal — implies order that doesn't exist
+
+Target / frequency / hashing:
+  - Use when categories are high-cardinality (500+)
+  - Target encoding must be done inside CV to prevent leakage
+  - CatBoost / LightGBM handle high cardinality natively
+
+# PROBLEM 3: ColumnTransformer
+Applies DIFFERENT pipelines to DIFFERENT column subsets:
+
+    preprocessor = ColumnTransformer([
+        ('num', numeric_pipe, num_cols),   # impute + scale
+        ('cat', cat_pipe,     cat_cols),   # impute + one-hot
+    ])
+
+Why it beats manual code:
+  - One object handles both column types
+  - Integrates with Pipeline → refits per CV fold (no leak)
+  - One thing to save and deploy
+
+# FEATURE CREATION — what the model can't do alone
+- FamilySize = SibSp + Parch + 1
+- IsAlone    = (FamilySize == 1)
+- Title extracted from Name via regex
+- Date features: day_of_week, month, is_weekend, days_since
+- Polynomial features: x1², x1·x2, x2² (PolynomialFeatures)
+- Ratios: income/debt, price/sqft
+
+Trees discover some interactions via splits.
+Linear models cannot. So engineered features help LR more than RF.
+
+# TITLE — WHY IT'S SUCH A GOOD FEATURE
+Titanic titles capture gender, age, social status:
+  Mr     → adult man
+  Mrs    → married woman
+  Miss   → unmarried woman
+  Master → YOUNG BOY (child!)
+  Rare   → doctors, reverends, nobility (tiny groups)
+
+The evacuation policy was "women and children first."
+So Mr has low survival; Mrs/Miss/Master high.
+One feature captures three signals at once.
+
+# OUR RESULTS (Titanic, 891 rows)
+Baseline (7 features):
+  LogisticRegression  0.7989
+  RandomForest        0.8156
+
+Engineered (+FamilySize, IsAlone, Title):
+  LogisticRegression  0.8101  (+0.0112)
+  RandomForest        0.8268  (+0.0112)
+
+Both improved by exactly 1.12 points.
+Modest — the feature set was already decent.
+But on harder real data, engineered features can be worth 5-15 points.
+
+RF > LR both baseline and engineered. Non-linear patterns
+exist (family survival, title class), and RF captures them.
+
+# DATA LEAKAGE WARNING (recurring theme)
+Every step that learns something from data must be fit on TRAIN ONLY:
+  - Imputer  → fit on X_train, transform X_test
+  - Scaler   → fit on X_train, transform X_test
+  - Encoder  → fit on X_train, transform X_test
+  - Feature selection / target encoding → also fit on train
+
+Do this automatically by keeping everything inside a Pipeline.
+
+# INTERVIEW ANSWER
+"Feature engineering is transforming raw data into features the
+model can use. I handle three main problems: missing values (impute
+with median or most frequent, or flag as missing), categorical
+features (one-hot for nominal, ordinal for ordered; target or hash
+for high-cardinality), and mixed column types (ColumnTransformer
+applies different pipelines per subset). I also create features the
+model can't discover on its own — FamilySize from SibSp+Parch, Title
+from Name, date parts from timestamps. The critical rule is to fit
+every preprocessing step on train only, then transform test with
+those stats — otherwise data leaks and test scores become optimistic.
+I put everything in a Pipeline so CV refits correctly per fold."
+
+# MY QUESTIONS (this session)
+1. Why split before imputing?
+   → Fitting imputer on full data leaks test stats into training.
+
+2. Why one-hot instead of label encoding for Sex?
+   → Label encoding implies an order that doesn't exist. One-hot
+     treats categories independently.
+
+3. What is ColumnTransformer for?
+   → Applying different preprocessing to different column subsets
+     in one object. Essential for mixed-type data.
+
+4. What if a categorical feature has 500 categories?
+   → One-hot is too sparse. Use target encoding (inside CV),
+     frequency encoding, hashing, or CatBoost/LightGBM.
+
+5. Why does Title help so much?
+   → Captures gender + age + social class in one feature.
+     Matches the "women and children first" survival pattern.
+
+# TAKEAWAYS
+- 60-80% of real ML work is feature engineering
+- Every preprocessing step must fit on train only
+- Pipeline + ColumnTransformer = the standard pattern
+- Engineered features matter more for linear models than trees
+- Modest gains (1-2%) are typical and still worth taking
+- Rare-category grouping prevents overfitting on tiny groups
